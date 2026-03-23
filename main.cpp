@@ -1,6 +1,7 @@
 #include <hpx/algorithm.hpp>
 #include <hpx/future.hpp>
 #include <hpx/init.hpp>
+#include <hpx/modules/timing.hpp>
 
 #include <iostream>
 #include <vector>
@@ -51,16 +52,21 @@ int hpx_main()
         std::cin >> B[i];
     }
 
+    hpx::chrono::high_resolution_timer t;
+
     // Swapped j and k loops for better harwdware prefetching
     hpx::experimental::for_loop(hpx::execution::par, 0, m1, [&](auto i)
                                 {
             for(int k=0; k<n1; ++k)
                 for(int j=0; j<n2; ++j)
                     R[i * n2 + j] += A[i * n1 + k] * B[k * n2 + j];
-        });
+    });
+
+    double elapsed = t.elapsed();
 
     std::cout << "Result Matrix:" << std::endl;
     print_matrix(R, m1, n2);
+    std::cout << "Time elapsed: " << elapsed << " seconds\n";
 
     return hpx::local::finalize();
 }
