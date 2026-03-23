@@ -2,12 +2,17 @@
 #include <hpx/future.hpp>
 #include <hpx/init.hpp>
 #include <hpx/modules/timing.hpp>
+#include <hpx/program_options.hpp>
 
 #include <iostream>
 #include <vector>
 
 void print_matrix(std::vector<int> &M, int m, int n)
 {
+    if(m>10 || n>10) return;
+
+    std::cout << "Result Matrix:" << std::endl;
+
     for (int i = 0; i < m; ++i)
     {
         for (int j = 0; j < n; ++j)
@@ -18,39 +23,26 @@ void print_matrix(std::vector<int> &M, int m, int n)
     }
 }
 
-int hpx_main()
+int hpx_main(hpx::program_options::variables_map& vm)
 {
-    std::vector<int> A, B, R;
-    int m1, n1, m2, n2;
+    std::size_t const m1 = vm["n"].as<std::size_t>();
+    std::size_t const n1 = vm["m"].as<std::size_t>();
+    std::size_t const m2 = n1; 
+    std::size_t const n2 = vm["k"].as<std::size_t>();
 
-    std::cout << "Enter the dimensions of the first matrix: ";
-    std::cin >> m1 >> n1;
-    A.resize(m1 * n1);
+    std::vector<int> A(m1 * n1);
+    std::vector<int> B(m2 * n2);
+    std::vector<int> R(m1 * n2, 0);
 
-    std::cout << "Enter the dimensions of the second matrix: ";
-    std::cin >> m2 >> n2;
-    B.resize(m2 * n2);
-
-    if (n1 != m2)
-    {
-        std::cout << "Matrix multiplication is not possible with the given dimensions" << std::endl;
-        return hpx::local::finalize();
-    }
+    // Initialization of Test Matrices
+    hpx::experimental::for_loop(hpx::execution::par, 0, m1 * n1, [&](auto i) {
+        A[i] = i % 100; 
+    });
+    hpx::experimental::for_loop(hpx::execution::par, 0, m2 * n2, [&](auto i) {
+        B[i] = (i + 1) % 100;
+    });
 
     R.resize(m1 * n2, 0);
-
-
-    std::cout << "Enter the elements of first matrix:" << std::endl;
-    for (int i = 0; i < m1 * n1; ++i)
-    {
-        std::cin >> A[i];
-    }
-
-    std::cout << "Enter the elements of first matrix:" << std::endl;
-    for (int i = 0; i < m2 * n2; ++i)
-    {
-        std::cin >> B[i];
-    }
 
     hpx::chrono::high_resolution_timer t;
 
@@ -71,7 +63,17 @@ int hpx_main()
     return hpx::local::finalize();
 }
 
-int main(int argc, char *argv[])
-{
-    return hpx::local::init(hpx_main, argc, argv);
+int main(int argc, char* argv[]) {
+    using namespace hpx::program_options;
+    options_description cmdline("usage: hpx_matrix_mul [options]");
+    
+    cmdline.add_options()
+        ("n", value<std::size_t>()->default_value(1000), "Rows of first matrix")
+        ("m", value<std::size_t>()->default_value(1000), "Cols of first / Rows of second")
+        ("k", value<std::size_t>()->default_value(1000), "Cols of second matrix");
+
+    hpx::local::init_params init_args;
+    init_args.desc_cmdline = cmdline;
+
+    return hpx::local::init(hpx_main, argc, argv, init_args);
 }
