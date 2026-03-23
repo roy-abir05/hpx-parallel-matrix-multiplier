@@ -46,12 +46,31 @@ int hpx_main(hpx::program_options::variables_map& vm)
 
     hpx::chrono::high_resolution_timer t;
 
-    // Swapped j and k loops for better harwdware prefetching
-    hpx::experimental::for_loop(hpx::execution::par, 0, m1, [&](auto i)
-                                {
-            for(int k=0; k<n1; ++k)
-                for(int j=0; j<n2; ++j)
-                    R[i * n2 + j] += A[i * n1 + k] * B[k * n2 + j];
+    const int TILE_SIZE = 64;
+    int num_row_blocks = (m1 + TILE_SIZE - 1) / TILE_SIZE;
+
+    // Parallelize over row blocks
+    hpx::experimental::for_loop(hpx::execution::par, 0, num_row_blocks, [&](int i_block) {
+        int i_start = i_block * TILE_SIZE;
+        int i_end = std::min<int>(i_start + TILE_SIZE, m1);
+
+        for(int k_start = 0; k_start < n1; k_start += TILE_SIZE) {
+            int k_end = std::min<int>(k_start + TILE_SIZE, n1);
+
+            for(int j_start = 0; j_start < n2; j_start += TILE_SIZE) {
+                int j_end = std::min<int>(j_start + TILE_SIZE, n2);
+
+                // Compute the tile
+                for(int i = i_start; i < i_end; ++i) {
+                    for(int k = k_start; k < k_end; ++k) {
+                        int A_ik = A[i * n1 + k];
+                        for(int j = j_start; j < j_end; ++j) {
+                            R[i * n2 + j] += A_ik * B[k * n2 + j];
+                        }
+                    }
+                }
+            }
+        }
     });
 
     double elapsed = t.elapsed();
