@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.19)
+project(hpx-parallel-matrix-multiplier CXX)
+find_package(HPX REQUIRED)
+add_executable(hpx-parallel-matrix-multiplier main.cpp)
+target_link_libraries(hpx-parallel-matrix-multiplier HPX::hpx HPX::wrap_main HPX::iostreams_component)
