@@ -36,7 +36,7 @@ int hpx_main()
         return hpx::local::finalize();
     }
 
-    R.resize(m1 * n2);
+    R.resize(m1 * n2, 0);
 
 
     std::cout << "Enter the elements of first matrix:" << std::endl;
@@ -51,13 +51,13 @@ int hpx_main()
         std::cin >> B[i];
     }
 
+    // Swapped j and k loops for better harwdware prefetching
     hpx::experimental::for_loop(hpx::execution::par, 0, m1, [&](auto i)
-                                { hpx::experimental::for_loop(0, n2, [&](auto j)
-                                                              {
-        R[i * n2 + j] = 0;
-        hpx::experimental::for_loop(0, n1, [&](auto k) {
-            R[i * n2 + j] += A[i * n1 + k] * B[k * n2 + j];
-        }); }); });
+                                {
+            for(int k=0; k<n1; ++k)
+                for(int j=0; j<n2; ++j)
+                    R[i * n2 + j] += A[i * n1 + k] * B[k * n2 + j];
+        });
 
     std::cout << "Result Matrix:" << std::endl;
     print_matrix(R, m1, n2);
